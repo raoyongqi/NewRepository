@@ -9,49 +9,79 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ShutdownService extends AccessibilityService {
 
+    private static final int CLICK_INTERVAL_MS = 1000; // 1秒间隔
+    private static final int MAX_CLICKS = 10; // 点击次数
+
+    private Handler handler = new Handler();
+    private int clickCount = 0;
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
-            // 直接执行下滑手势，无需延迟
-            performSwipeDownGesture();
+            // 执行打开关机对话框
+            openPowerDialog();
         }
         return super.onStartCommand(intent, flags, startId);
     }
 
-    private void performSwipeDownGesture() {
-        // 定义下滑手势的路径
-        Path swipePath = new Path();
-        swipePath.moveTo(200, 50);  // 手势起点 (可以根据屏幕分辨率调整)
-        swipePath.lineTo(200, 1000); // 手势终点 (可以根据屏幕分辨率调整)
+    private void openPowerDialog() {
+        // 调用系统的关机对话框
+        performGlobalAction(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG);
 
-        // 创建手势描述
-        GestureDescription.StrokeDescription swipeStroke = new GestureDescription.StrokeDescription(swipePath, 0, 2000);
+        // 增加延迟后执行第一个点击手势
+        new Handler().postDelayed(this::performFirstClick, 1000); // 1秒延迟
+    }
+
+    private void performFirstClick() {
+        // 定义第一个点击手势的路径
+        Path clickPath1 = new Path();
+        clickPath1.moveTo(455, 1100);  // 第一个点击坐标 (可以根据实际需要调整)
+
+        // 创建点击手势描述
+        GestureDescription.StrokeDescription clickStroke1 = new GestureDescription.StrokeDescription(clickPath1, 0, 100);
         GestureDescription.Builder gestureBuilder = new GestureDescription.Builder();
-        gestureBuilder.addStroke(swipeStroke);
+        gestureBuilder.addStroke(clickStroke1);
 
-        // 派发手势并在完成后执行点击手势
+        // 派发点击手势并在完成后执行第二个点击手势
         dispatchGesture(gestureBuilder.build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gestureDescription) {
                 super.onCompleted(gestureDescription);
-                // 增加延迟后再执行点击手势
-                new Handler().postDelayed(ShutdownService.this::performTapGesture, 1000); // 0.5秒延迟
+                // 增加延迟后执行第二个点击手势
+                new Handler().postDelayed(ShutdownService.this::startRepeatedClicks, 1000); // 1秒延迟
             }
         }, null);
     }
 
-    private void performTapGesture() {
-        // 定义点击手势的路径 (点击左上角)
-        Path tapPath = new Path();
-        tapPath.moveTo(64, 331);  // 点击坐标 (可以根据实际需要调整)
+    private void startRepeatedClicks() {
+        // 初始化点击计数器
+        clickCount = 0;
+        performRepeatedClick();
+    }
+
+    private void performRepeatedClick() {
+        // 定义第二个点击手势的路径
+        Path clickPath2 = new Path();
+        clickPath2.moveTo(455, 1000);  // 第二个点击坐标 (可以根据实际需要调整)
 
         // 创建点击手势描述
-        GestureDescription.StrokeDescription tapStroke = new GestureDescription.StrokeDescription(tapPath, 0, 100);
+        GestureDescription.StrokeDescription clickStroke2 = new GestureDescription.StrokeDescription(clickPath2, 0, 100);
         GestureDescription.Builder gestureBuilder = new GestureDescription.Builder();
-        gestureBuilder.addStroke(tapStroke);
+        gestureBuilder.addStroke(clickStroke2);
 
         // 派发点击手势
-        dispatchGesture(gestureBuilder.build(), null, null);
+        dispatchGesture(gestureBuilder.build(), new GestureResultCallback() {
+            @Override
+            public void onCompleted(GestureDescription gestureDescription) {
+                super.onCompleted(gestureDescription);
+                // 增加计数器并检查是否需要继续点击
+                clickCount++;
+                if (clickCount < MAX_CLICKS) {
+                    // 再次延迟后执行下一次点击
+                    handler.postDelayed(ShutdownService.this::performRepeatedClick, CLICK_INTERVAL_MS);
+                }
+            }
+        }, null);
     }
 
     @Override
