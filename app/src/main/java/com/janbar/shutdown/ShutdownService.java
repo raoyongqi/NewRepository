@@ -12,11 +12,8 @@ public class ShutdownService extends AccessibilityService {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
-            // 显示电源对话框
-//            performGlobalAction(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG);
-
-            // 延迟执行下滑手势，确保电源对话框已经显示
-            new Handler().postDelayed(this::performSwipeDownGesture, 1000); // 1秒延迟
+            // 直接执行下滑手势，无需延迟
+            performSwipeDownGesture();
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -32,7 +29,28 @@ public class ShutdownService extends AccessibilityService {
         GestureDescription.Builder gestureBuilder = new GestureDescription.Builder();
         gestureBuilder.addStroke(swipeStroke);
 
-        // 派发手势
+        // 派发手势并在完成后执行点击手势
+        dispatchGesture(gestureBuilder.build(), new GestureResultCallback() {
+            @Override
+            public void onCompleted(GestureDescription gestureDescription) {
+                super.onCompleted(gestureDescription);
+                // 增加延迟后再执行点击手势
+                new Handler().postDelayed(ShutdownService.this::performTapGesture, 1000); // 0.5秒延迟
+            }
+        }, null);
+    }
+
+    private void performTapGesture() {
+        // 定义点击手势的路径 (点击左上角)
+        Path tapPath = new Path();
+        tapPath.moveTo(64, 331);  // 点击坐标 (可以根据实际需要调整)
+
+        // 创建点击手势描述
+        GestureDescription.StrokeDescription tapStroke = new GestureDescription.StrokeDescription(tapPath, 0, 100);
+        GestureDescription.Builder gestureBuilder = new GestureDescription.Builder();
+        gestureBuilder.addStroke(tapStroke);
+
+        // 派发点击手势
         dispatchGesture(gestureBuilder.build(), null, null);
     }
 
