@@ -6,52 +6,54 @@ import android.content.Intent;
 import android.graphics.Path;
 import android.os.Build;
 import android.os.Handler;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
 public class ShutdownService extends AccessibilityService {
 
+    private final Handler handler = new Handler();
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
-            // 显示电源对话框
-            performGlobalAction(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG);
-
-            // 延迟执行下滑手势
-            new Handler().postDelayed(this::performSwipeDownGesture, 1000); // 1秒延迟
+            handler.postDelayed(this::performClickGestures, 1000); // 1 second delay
         }
-        return super.onStartCommand(intent, flags, startId);
+        return START_STICKY;
     }
 
-    private void performSwipeDownGesture() {
-        // 定义下滑手势的路径
-        Path swipePath = new Path();
-        swipePath.moveTo(540, 300);  // 手势起点 (可以根据屏幕分辨率调整)
-        swipePath.lineTo(540, 1600); // 手势终点 (可以根据屏幕分辨率调整)
+    private void performClickGestures() {
+        float[][] coordinates = {
+                {100, 200}   };
 
-        // 创建手势描述
-        GestureDescription.StrokeDescription swipeStroke = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            swipeStroke = new GestureDescription.StrokeDescription(swipePath, 0, 500);
+        for (float[] coord : coordinates) {
+            GestureDescription gesture = createGesture(coord[0], coord[1], coord[0], coord[1], false, 100);
+            if (gesture != null) {
+                dispatchGesture(gesture, new GestureResultCallback() {
+                }, handler);
+            }
         }
-        GestureDescription.Builder gestureBuilder = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            gestureBuilder = new GestureDescription.Builder();
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            gestureBuilder.addStroke(swipeStroke);
+    }
+
+    private static GestureDescription createGesture(float x1, float y1, float x2, float y2, boolean swipe, int duration) {
+        Path path = new Path();
+        path.moveTo(x1, y1);
+        if (swipe) {
+            path.lineTo(x2, y2);
         }
 
-        // 派发手势
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            dispatchGesture(gestureBuilder.build(), null, null);
-        }
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, duration);
+        GestureDescription.Builder builder = new GestureDescription.Builder();
+        builder.addStroke(stroke);
+        return builder.build();
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        // Handle accessibility events if needed
     }
 
     @Override
     public void onInterrupt() {
+        // Handle interruptions if needed
     }
 }
